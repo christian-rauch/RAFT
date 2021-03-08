@@ -12,6 +12,8 @@ from utils.utils import InputPadder
 
 from demo import load_image, viz
 
+import time
+
 DEVICE = 'cuda'
 
 def demo(args):
@@ -34,7 +36,9 @@ def demo(args):
 
             # call the forward method on the TorchScript model
             # all static values of the original model, such as 'iters', were fixed during the JIT tracing and are ignored here
+            tstart = time.time()
             flow_low, flow_up = model(image1, image2, torch.tensor([]), torch.tensor([]), torch.tensor([]), torch.tensor([]))
+            print("inference", time.time()-tstart, "s")
             viz(image1, flow_up)
 
 
