@@ -15,17 +15,19 @@ from raft import RAFT
 from utils import flow_viz
 from utils.utils import InputPadder
 
-
+import time
 
 DEVICE = 'cuda'
 
 def load_image(imfile):
     img = np.array(Image.open(imfile)).astype(np.uint8)
+    img = cv2.resize(img, None, fx=0.5, fy=0.5)
+    # img = cv2.GaussianBlur(img, (9,9), 0)
     img = torch.from_numpy(img).permute(2, 0, 1).float()
     return img[None].to(DEVICE)
 
 
-def viz(img, flo):
+def viz(i, img, flo):
     img = img[0].permute(1,2,0).cpu().numpy()
     flo = flo[0].permute(1,2,0).cpu().numpy()
 
@@ -38,6 +40,7 @@ def viz(img, flo):
     # plt.show()
 
     cv2.imshow('image', img_flo[:, :, [2,1,0]]/255.0)
+    # cv2.imwrite("/tmp/flow/img"+str(i)+".png", img_flo[:, :, [2,1,0]])
     cv2.waitKey()
 
 
@@ -54,15 +57,19 @@ def demo(args):
                  glob.glob(os.path.join(args.path, '*.jpg'))
 
         images = sorted(images)
-        for imfile1, imfile2 in zip(images[:-1], images[1:]):
+        for i, (imfile1, imfile2) in enumerate(zip(images[:-1], images[1:])):
             image1 = load_image(imfile1)
             image2 = load_image(imfile2)
 
             padder = InputPadder(image1.shape)
             image1, image2 = padder.pad(image1, image2)
 
+            tstart = time.time()
             flow_low, flow_up = model(image1, image2, iters=torch.tensor(20), test_mode=torch.tensor(True))
-            viz(image1, flow_up)
+            print(i, "inference", time.time()-tstart,"s")
+            # cv2.imshow("flow", flow_up)
+            viz(i, image1, flow_up)
+
 
 
 if __name__ == '__main__':
