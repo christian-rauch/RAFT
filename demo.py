@@ -3,6 +3,9 @@
 import sys
 sys.path.append('core')
 
+# from torchinfo import summary
+# from torchviz import make_dot
+
 import argparse
 import os
 import cv2
@@ -42,12 +45,28 @@ def viz(img, flo):
 
 
 def demo(args):
-    model = torch.nn.DataParallel(RAFT(args))
+    raft = RAFT(args)
+    model = torch.nn.DataParallel(raft)
     model.load_state_dict(torch.load(args.model))
 
     model = model.module
     model.to(DEVICE)
     model.eval()
+
+    # summary(model, input_size=2 * [(1, 3, 640, 480)], device = 'cuda')
+
+    # with torch.no_grad():
+    #     x = torch.zeros(1, 3, 640, 480, dtype=torch.float, requires_grad=False, device="cuda")
+    #     # dot = make_dot(model(image1=x, image2=x, iters=torch.tensor(20), test_mode=torch.tensor(True)),
+    #     #                 params=dict(list(model.named_parameters())),
+    #     #                 show_attrs=True, show_saved=True)
+
+    #     flow_low, flow_up = raft.forward(x, x, iters=torch.tensor(20), test_mode=torch.tensor(True))
+    #     dot = make_dot(flow_up,
+    #                     params=dict(list(model.named_parameters())),
+    #                     show_attrs=True, show_saved=True)
+
+    #     dot.render("viz_raft", format="png")
 
     with torch.no_grad():
         images = glob.glob(os.path.join(args.path, '*.png')) + \
@@ -61,7 +80,10 @@ def demo(args):
             padder = InputPadder(image1.shape)
             image1, image2 = padder.pad(image1, image2)
 
-            flow_low, flow_up = model(image1, image2, iters=torch.tensor(20), test_mode=torch.tensor(True))
+            flow_low, flow_up = model(image1, image2, iters=torch.tensor(4), test_mode=torch.tensor(True))
+
+            # make_dot((flow_low, flow_up)).render("viz_raft", format="png")
+
             viz(image1, flow_up)
 
 

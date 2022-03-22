@@ -101,6 +101,7 @@ class RAFT(nn.Module):
 
         fmap1 = fmap1.float()
         fmap2 = fmap2.float()
+        print("fmap shapes", fmap1.shape, fmap2.shape)
         if self.args.alternate_corr:
             corr_fn = AlternateCorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
         else:
@@ -109,9 +110,11 @@ class RAFT(nn.Module):
         # run the context network
         with autocast(enabled=self.args.mixed_precision):
             cnet = self.cnet(image1)
+            print("cnet shape", cnet.shape)
             net, inp = torch.split(cnet, [hdim, cdim], dim=1)
             net = torch.tanh(net)
             inp = torch.relu(inp)
+            print("cnet shapes", net.shape, inp.shape)
 
         coords0, coords1 = self.initialize_flow(image1)
 
@@ -123,9 +126,16 @@ class RAFT(nn.Module):
             coords1 = coords1.detach()
             corr = corr_fn(coords1) # index correlation volume
 
+            print("corr it {} shape".format(itr), corr.shape)
+            # B, N, W, H
+            # N = 9*9 * 4
+
             flow = coords1 - coords0
             with autocast(enabled=self.args.mixed_precision):
                 net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
+
+            print("update it {} shapes ".format(itr), net.shape, delta_flow.shape)
+            # print("update it {} shapes ".format(itr), net.shape, up_mask.shape, delta_flow.shape)
 
             # F(t+1) = F(t) + \Delta(t)
             coords1 = coords1 + delta_flow
